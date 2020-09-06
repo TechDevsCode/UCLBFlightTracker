@@ -1,0 +1,14 @@
+﻿@page "/counter"
+
+<h1>UCLB Flight Tracker</h1>
+
+<button class="btn btn-primary" @onclick="IncrementCount">Start Tracking</button>
+
+@code {
+    private int currentCount = 0;
+
+    private void IncrementCount()
+    {
+        currentCount++;
+    }
+}

@@ -1,0 +1,185 @@
+﻿@page "/fetchdata"
+
+@using BlazorApp1.Data
+@using Microsoft.AspNetCore.SignalR.Client
+@using Newtonsoft.Json;
+@using Syncfusion.Blazor.Maps;
+
+@inject NavigationManager NavigationManager
+@inject WeatherForecastService ForecastService
+@inject UCLBClient UclbClient
+
+<h1>UCLB Flight Tracker</h1>
+
+<p>Microsoft Flight Sim 2020</p>
+
+@if (UclbClient == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Property</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Latitude</td>
+                <td>@position.Latitude.ToString("N4") degrees</td>
+            </tr>
+            <tr>
+                <td>Longitude</td>
+                <td>@position.Longitude.ToString("N4") degrees</td>
+            </tr>
+            <tr>
+                <td>Altitude</td>
+                <td>@position.Altitude.ToString("N0") feet</td>
+            </tr>
+            <tr>
+                <td>Airline</td>
+                <td>@position.Airline</td>
+            </tr>
+            <tr>
+                <td>Tail Number</td>
+                <td>@position.TailNumber</td>
+            </tr>
+            <tr>
+                <td>Heading</td>
+                <td>@position.TrueHeading.ToString("N0")</td>
+            </tr>
+            <tr>
+                <td>Fuel</td>
+                <td>@position.FuelQty.ToString("N2") gallons</td>
+            </tr>
+
+            <tr>
+                <td>Status</td>
+                <td>
+                    @if (position.OnGround)
+                    {
+                        <span>Grounded</span>
+                    }
+                    else
+                    {
+                        <span>Flying</span>
+                    }
+                </td>
+            </tr>
+
+            <tr>
+                <td>Parking Brake</td>
+                <td>
+                    @if (position.ParkingBrake)
+                    {
+                        <span>Set</span>
+                    }
+                    else
+                    {
+                        <span>Released</span>
+                    }
+                </td>
+            </tr>
+        </tbody>
+    </table>
+}
+
+@code {
+
+    //SfMaps maps;
+    private List<PositionMarker> Markers = new List<PositionMarker>();
+    private HubConnection hubConnection;
+    private Position position;
+    private List<string> messages = new List<string>();
+    private string latitude;
+    private string longitude;
+    private string userInput;
+    private string messageInput;
+    private bool parkingBrake;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Markers = new List<PositionMarker>();
+
+        UclbClient.Initialize();
+
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(NavigationManager.ToAbsoluteUri("/simhub"))
+            .Build();
+
+        hubConnection.On<string, string>("Position", (lat, lng) =>
+        {
+            //Console.WriteLine($"Received Position lat: {lat}   lng: {lng}");
+            latitude = lat;
+            longitude = lng;
+            UpdateMarker();
+            StateHasChanged();
+        });
+
+        hubConnection.On<string>("PositionObject", (p) =>
+        {
+            var pos = JsonConvert.DeserializeObject<Position>(p);
+            position = pos;
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    Task Send() =>
+        hubConnection.SendAsync("SendMessage", userInput, messageInput);
+
+    public bool IsConnected =>
+        hubConnection.State == HubConnectionState.Connected;
+
+    public void Dispose()
+    {
+        _ = hubConnection.DisposeAsync();
+    }
+
+    public void UpdateMarker()
+    {
+        Markers = new List<PositionMarker> { new PositionMarker { Lat = 35.145083, Lng = -117.960260 } };
+        //maps.AddMarker(0, Markers);
+        //try
+        //{
+        //    Markers.FirstOrDefault().Lat = position.Latitude;
+        //    Markers.FirstOrDefault().Lng = position.Longitude;
+        //}
+        //catch (Exception)
+        //{
+        //}
+    }
+
+
+    public class PositionMarker
+    {
+        public double Lat;
+        public double Lng;
+    }
+
+}
+
+
+@*<SfMaps @ref="maps">
+        <MapsZoomSettings Enable="true"
+                          ToolBarOrientation="Orientation.Vertical"
+                          Toolbars='new string[]{"Zoom", "ZoomIn", "ZoomOut", "Pan", "Reset" }'>
+        </MapsZoomSettings>
+        <MapsLayers>
+            <MapsLayer LayerType="ShapeLayerType.Bing" BingMapType="BingMapType.CanvasDark" Key="At4Si29yRwiQQDb0rZT4J83GM_G3jZJNT-jGdD3bb8vyZV7JbRhJ1_36Kquf7uvY">
+            </MapsLayer>
+        </MapsLayers>
+        <MapsZoomSettings ZoomFactor="4"></MapsZoomSettings>
+    </SfMaps>*@
+
+
+
+@*<h1>Site Mapper</h1>
+
+<div id="myMap" style="position:relative; width: 100%; height: 70vh;"></div>*@
+
+
